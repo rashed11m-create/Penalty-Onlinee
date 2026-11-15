@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Penalty Online</title>
+<title>تحدي ركلات الجزاء</title>
 <style>
 * { box-sizing: border-box; }
 body {
@@ -19,7 +19,7 @@ header {
 }
 h1 {
     color: #36ff91;
-    font-size: 30px;
+    font-size: 29px;
 }
 .field {
     height: 450px;
@@ -85,9 +85,6 @@ button {
     font-size: 16px;
     font-weight: bold;
 }
-button:disabled {
-    opacity: .4;
-}
 #result {
     font-size: 23px;
     color: #36ff91;
@@ -100,28 +97,28 @@ button:disabled {
 </head>
 <body>
 <header>
-<h1>⚽ PENALTY ONLINE</h1>
-<p>ULTIMATE PENALTY EXPERIENCE</p>
+<h1>⚽ تحدي ركلات الجزاء</h1>
+<p>اختبر مهارتك وسجّل الأهداف!</p>
 </header>
-<h2>Penalty Shootout</h2>
+<h2>ضربة الجزاء</h2>
 <div class="field">
 <div class="goal">
-    <div class="net"></div>
+<div class="net"></div>
 </div>
 <div class="keeper" id="keeper">🧤</div>
 <div class="player">🧍🏻</div>
 <div class="ball" id="ball">⚽</div>
 </div>
-<h3>Choose your shot</h3>
+<h3>اختر جهة التسديد</h3>
 <div>
-<button onclick="shoot('left')" id="left">⬅ LEFT</button>
-<button onclick="shoot('center')" id="center">⬆ CENTER</button>
-<button onclick="shoot('right')" id="right">RIGHT ➡</button>
+<button onclick="shoot('left')">⬅ يسار</button>
+<button onclick="shoot('center')">⬆ الوسط</button>
+<button onclick="shoot('right')">يمين ➡</button>
 </div>
-<div id="result">READY TO SHOOT?</div>
-<div id="score">Goals: 0 | Shots: 0</div>
+<div id="result">مستعد للتسديد؟</div>
+<div id="score">الأهداف: 0 | الركلات: 0</div>
 
-🔄 NEW GAME
+🔄 مباراة جديدة
 
 <script>
 let goals = 0;
@@ -148,16 +145,16 @@ function shoot(direction) {
     setTimeout(() => {
         if (direction !== keeperDirection) {
             goals++;
-            result.innerText = "⚽ GOOOOAL!";
+            result.innerText = "⚽ هــــــــدف!";
         } else {
-            result.innerText = "🧤 SAVED!";
+            result.innerText = "🧤 تصدى الحارس للكرة!";
         }
         document.getElementById("score").innerText =
-            `Goals: ${goals} | Shots: ${shots}`;
+            `الأهداف: ${goals} | الركلات: ${shots}`;
         if (shots === 5) {
             setTimeout(() => {
                 result.innerText =
-                    `🏆 GAME OVER! ${goals}/5 Goals`;
+                    `🏆 انتهت المباراة! سجلت ${goals} من 5`;
             }, 500);
         }
         setTimeout(() => {
@@ -175,9 +172,9 @@ function resetGame() {
     document.getElementById("ball").style.bottom = "30px";
     document.getElementById("keeper").style.left = "47%";
     document.getElementById("result").innerText =
-        "READY TO SHOOT?";
+        "مستعد للتسديد؟";
     document.getElementById("score").innerText =
-        "Goals: 0 | Shots: 0";
+        "الأهداف: 0 | الركلات: 0";
 }
 </script>
 </body>
