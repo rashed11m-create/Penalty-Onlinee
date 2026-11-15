@@ -7,41 +7,19 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
-body{
- margin:0;background:#06130d;color:white;
- font-family:Arial,sans-serif;text-align:center;
-}
-header{
- background:#020906;padding:14px;
- border-bottom:2px solid #19c96b;
-}
+body{margin:0;background:#06130d;color:white;font-family:Arial,sans-serif;text-align:center}
+header{background:#020906;padding:14px;border-bottom:2px solid #19c96b}
 h1{color:#36ff91;margin:5px;font-size:27px}
 h2{color:#36ff91}
 p{color:#c8d7cd}
-.panel{
- background:#10251a;border:1px solid #245b3c;
- border-radius:17px;padding:17px;margin:12px auto;
- max-width:550px;width:94%;
-}
-button,select,input{
- border:0;border-radius:12px;padding:13px;
- margin:5px;font-size:16px;
-}
-button{
- background:#19c96b;color:#04130a;
- font-weight:bold;cursor:pointer;
-}
+.panel{background:#10251a;border:1px solid #245b3c;border-radius:17px;padding:17px;margin:12px auto;max-width:550px;width:94%}
+button,select,input{border:0;border-radius:12px;padding:13px;margin:5px;font-size:16px}
+button{background:#19c96b;color:#04130a;font-weight:bold;cursor:pointer}
 button:disabled{opacity:.4}
-input,select{
- background:#e8f5ed;color:#07130e;
- width:85%;max-width:300px;
-}
+input,select{background:#e8f5ed;color:#07130e;width:85%;max-width:300px}
 .small{font-size:13px;color:#a6c6b1}
 #gameArea{display:none}
-canvas{
- display:block;width:100%;height:52vh;
- min-height:300px;max-height:500px;
-}
+canvas{display:block;width:100%;height:52vh;min-height:300px;max-height:500px}
 #result{font-size:21px;color:#36ff91;margin:12px}
 #score{font-size:19px;margin:10px}
 #status{color:#ffda65;margin:12px}
@@ -52,19 +30,17 @@ canvas{
 #soundBtn{background:#243e30;color:white}
 #restart{background:#ffcf4a}
 #leaderboard{font-size:14px;line-height:2}
+.offlineBtn{background:#ffcf4a}
 </style>
 </head>
 <body>
-
 <header>
 <h1>⚽ PENALTY ARENA</h1>
-<p>تحدّى ربعك في ركلات الجزاء!</p>
+<p>تحدّى ربعك أو واجه الكمبيوتر!</p>
 </header>
-
 <div id="lobby">
-
 <div class="panel">
-<h2>🎮 العب أونلاين</h2>
+<h2>🌐 العب أونلاين</h2>
 <button onclick="createRoom()">إنشاء غرفة</button>
 <br>
 <input id="roomInput" placeholder="رمز الغرفة">
@@ -72,7 +48,17 @@ canvas{
 <button onclick="joinRoom()">دخول الغرفة</button>
 <div id="status">أنشئ غرفة أو ادخل غرفة صديقك</div>
 </div>
-
+<div class="panel">
+<h2>📴 العب أوفلاين</h2>
+<p>واجه الكمبيوتر بدون الحاجة للإنترنت</p>
+<select id="difficulty">
+<option value="easy">🟢 سهل</option>
+<option value="medium">🟡 متوسط</option>
+<option value="hard">🔴 صعب</option>
+</select>
+<br>
+<button class="offlineBtn" onclick="startOffline()">ابدأ اللعب ضد الكمبيوتر</button>
+</div>
 <div class="panel">
 <h2>⚙️ تخصيص اللاعب</h2>
 <p>اختر لون ملابسك</p>
@@ -83,7 +69,6 @@ canvas{
 <option value="#111111">⚫ أسود</option>
 <option value="#ffcc00">🟡 أصفر</option>
 </select>
-
 <p>اختر الملعب</p>
 <select id="stadium">
 <option value="0">🏟️ ملعب أخضر</option>
@@ -91,14 +76,11 @@ canvas{
 <option value="2">🌆 ملعب المدينة</option>
 </select>
 </div>
-
 <div class="panel">
 <h2>🏆 سجل انتصاراتك</h2>
 <div id="leaderboard">ما عندك نتائج محفوظة للحين</div>
 </div>
-
 </div>
-
 <div id="gameArea">
 <div class="panel">
 <div id="roomInfo"></div>
@@ -106,30 +88,26 @@ canvas{
 <div id="score"></div>
 <div id="timer"></div>
 </div>
-
 <canvas id="game"></canvas>
-
 <div id="result">بانتظار اللاعبين</div>
 <div id="controls"></div>
-
 <div class="panel">
 <button id="soundBtn" onclick="toggleSound()">🔊 الصوت: تشغيل</button>
-<button onclick="copyRoom()">📋 نسخ رمز الغرفة</button>
+<button id="copyBtn" onclick="copyRoom()">📋 نسخ رمز الغرفة</button>
 <button onclick="leaveRoom()">🚪 خروج</button>
 </div>
 </div>
-
 <script>
 const SUPABASE_URL="https://tkzgunmiroijvxxlkhsf.supabase.co";
 const SUPABASE_KEY="sb_publishable_Ia_qHzCQ4llHMdcUBJKL_A_2cIWVh3Y";
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
 let myId=localStorage.getItem("penalty_player_id");
 if(!myId){
  myId=crypto.randomUUID();
  localStorage.setItem("penalty_player_id",myId);
 }
-
+let mode="online";
+let difficulty="easy";
 let room=null;
 let roomId=null;
 let isHost=false;
@@ -138,15 +116,10 @@ let poller=null;
 let timerInterval=null;
 let soundOn=true;
 let shotAnim=null;
-let lastPhase="";
-let deadline=0;
 let busy=false;
-
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
-
 let W=0,H=0;
-
 function resize(){
  const dpr=Math.min(devicePixelRatio||1,2);
  W=canvas.clientWidth;
@@ -156,7 +129,6 @@ function resize(){
  ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 window.addEventListener("resize",resize);
-
 function sound(freq=440,duration=.12,type="sine"){
  if(!soundOn)return;
  try{
@@ -174,40 +146,32 @@ function sound(freq=440,duration=.12,type="sine"){
   osc.stop(ac.currentTime+duration);
  }catch(e){}
 }
-
 function toggleSound(){
  soundOn=!soundOn;
  document.getElementById("soundBtn").textContent=
  soundOn?"🔊 الصوت: تشغيل":"🔇 الصوت: إيقاف";
 }
-
 function stadiumColors(){
  const n=Number(document.getElementById("stadium")?.value||0);
  if(n===1)return {sky:"#111b3a",stands:"#20233e",grass:"#155c36"};
  if(n===2)return {sky:"#f29a58",stands:"#35404c",grass:"#176d37"};
  return {sky:"#73b9e8",stands:"#444",grass:"#167b38"};
 }
-
 function draw(){
  if(!W||!H)return;
-
  const c=stadiumColors();
  ctx.clearRect(0,0,W,H);
-
  let sky=ctx.createLinearGradient(0,0,0,H);
  sky.addColorStop(0,c.sky);
  sky.addColorStop(1,"#d4eaff");
  ctx.fillStyle=sky;
  ctx.fillRect(0,0,W,H);
-
  ctx.fillStyle=c.stands;
  ctx.fillRect(0,H*.14,W,H*.25);
-
  for(let i=0;i<70;i++){
   ctx.fillStyle=["#fff","#ff3333","#3333ff","#ffcc00"][i%4];
   ctx.fillRect(i*W/70,H*.19,4,H*.08);
  }
-
  ctx.fillStyle=c.grass;
  ctx.beginPath();
  ctx.moveTo(W*.43,H*.30);
@@ -216,18 +180,15 @@ function draw(){
  ctx.lineTo(W*.02,H);
  ctx.closePath();
  ctx.fill();
-
  for(let i=0;i<6;i++){
   ctx.globalAlpha=.12;
   ctx.fillStyle="#caffbb";
   ctx.fillRect(0,H*(.42+i*.09),W,H*.05);
  }
  ctx.globalAlpha=1;
-
  ctx.strokeStyle="white";
  ctx.lineWidth=2;
  ctx.strokeRect(W*.25,H*.22,W*.5,H*.20);
-
  for(let i=1;i<10;i++){
   ctx.beginPath();
   ctx.moveTo(W*.25+W*.5*i/10,H*.22);
@@ -236,44 +197,31 @@ function draw(){
   ctx.lineWidth=1;
   ctx.stroke();
  }
-
  let keeperX=W*.5;
- let dive=0;
-
  if(shotAnim){
   const t=Math.min(1,(performance.now()-shotAnim.start)/850);
-  dive=shotAnim.direction* Math.sin(t*Math.PI/2);
-  keeperX+=dive*W*.15;
+  keeperX+=shotAnim.direction*Math.sin(t*Math.PI/2)*W*.15;
  }
-
  ctx.fillStyle="#ffcc00";
  ctx.fillRect(keeperX-W*.025,H*.37,W*.05,H*.09);
  ctx.fillStyle="#c68655";
  ctx.beginPath();
  ctx.arc(keeperX,H*.35,13,0,Math.PI*2);
  ctx.fill();
-
  ctx.fillStyle="#202020";
  ctx.fillRect(keeperX-W*.04,H*.46,W*.025,H*.08);
  ctx.fillRect(keeperX+W*.015,H*.46,W*.025,H*.08);
-
  const kit=document.getElementById("kit")?.value||"#173bff";
  ctx.fillStyle=kit;
  ctx.fillRect(W*.44,H*.72,W*.12,H*.14);
-
  ctx.fillStyle="#c68655";
  ctx.beginPath();
  ctx.arc(W*.5,H*.69,14,0,Math.PI*2);
  ctx.fill();
-
  ctx.fillStyle="#171717";
  ctx.fillRect(W*.445,H*.85,W*.04,H*.12);
  ctx.fillRect(W*.515,H*.85,W*.04,H*.12);
-
- let bx=W*.5;
- let by=H*.92;
- let size=W*.035;
-
+ let bx=W*.5,by=H*.92,size=W*.035;
  if(shotAnim){
   const t=Math.min(1,(performance.now()-shotAnim.start)/850);
   const target=W*.5+shotAnim.target*W*.20;
@@ -282,7 +230,6 @@ function draw(){
   size=W*.035*(1-.55*t);
   if(t>=1)shotAnim=null;
  }
-
  ctx.fillStyle="white";
  ctx.beginPath();
  ctx.arc(bx,by,size,0,Math.PI*2);
@@ -290,143 +237,138 @@ function draw(){
  ctx.strokeStyle="#222";
  ctx.lineWidth=2;
  ctx.stroke();
-
  ctx.fillStyle="#222";
  ctx.beginPath();
  ctx.arc(bx,by,size*.35,0,Math.PI*2);
  ctx.fill();
-
  requestAnimationFrame(draw);
 }
 requestAnimationFrame(draw);
-
 function showStatus(t){
  document.getElementById("status").textContent=t;
 }
-
+function startOffline(){
+ mode="offline";
+ difficulty=document.getElementById("difficulty").value;
+ room=null;
+ roomId=null;
+ isHost=true;
+ currentState={
+  shooter:"host",
+  phase:"shoot",
+  shooterChoice:null,
+  keeperChoice:null,
+  hostGoals:0,
+  guestGoals:0,
+  round:1,
+  message:"أنت تبدأ بالتسديد!",
+  matchId:"offline-"+Date.now()
+ };
+ startGame();
+}
 async function createRoom(){
+ mode="online";
  showStatus("جاري إنشاء الغرفة...");
  const code=Math.floor(100000+Math.random()*900000).toString();
-
  const state={
- shooter:"host",phase:"shoot",
- shooterChoice:null,keeperChoice:null,
- hostGoals:0,guestGoals:0,
- round:1,message:"بانتظار اللاعب الثاني",
- deadline:Date.now()+20000
+  shooter:"host",phase:"shoot",
+  shooterChoice:null,keeperChoice:null,
+  hostGoals:0,guestGoals:0,
+  round:1,message:"بانتظار اللاعب الثاني",
+  deadline:Date.now()+20000
  };
-
  const {data,error}=await db.from("rooms").insert({
-  room_code:code,
-  host_id:myId,
-  game_state:state,
-  status:"waiting"
+  room_code:code,host_id:myId,
+  game_state:state,status:"waiting"
  }).select().single();
-
  if(error){
   showStatus("خطأ: "+error.message);
   return;
  }
-
  room=data;
  roomId=data.id;
  isHost=true;
+ currentState=null;
  startGame();
 }
-
 async function joinRoom(){
+ mode="online";
  const code=document.getElementById("roomInput").value.trim();
  if(!code)return showStatus("اكتب رمز الغرفة");
-
  showStatus("جاري البحث...");
-
  const {data,error}=await db.from("rooms")
  .select("*").eq("room_code",code).maybeSingle();
-
  if(error||!data)return showStatus("الغرفة غير موجودة");
  if(data.guest_id)return showStatus("الغرفة ممتلئة");
  if(data.host_id===myId)return showStatus("إنت صاحب الغرفة");
-
  const {data:updated,error:updateError}=await db.from("rooms")
  .update({guest_id:myId,status:"playing"})
  .eq("id",data.id).is("guest_id",null)
  .select().maybeSingle();
-
  if(updateError||!updated)return showStatus("تعذر الدخول، حاول مرة ثانية");
-
  room=updated;
  roomId=updated.id;
  isHost=false;
+ currentState=null;
  startGame();
 }
-
 function startGame(){
  document.getElementById("lobby").style.display="none";
  document.getElementById("gameArea").style.display="block";
+ document.getElementById("copyBtn").style.display=mode==="online"?"inline-block":"none";
  resize();
- refreshRoom();
-
  if(poller)clearInterval(poller);
- poller=setInterval(refreshRoom,1000);
-
  if(timerInterval)clearInterval(timerInterval);
- timerInterval=setInterval(updateTimer,300);
+ if(mode==="online"){
+  refreshRoom();
+  poller=setInterval(refreshRoom,1000);
+  timerInterval=setInterval(updateTimer,300);
+ }else{
+  renderOffline();
+  if(currentState.shooter==="guest")cpuShoot();
+ }
 }
-
 async function refreshRoom(){
- if(!roomId||busy)return;
-
+ if(mode!=="online"||!roomId||busy)return;
  const {data,error}=await db.from("rooms")
  .select("*").eq("id",roomId).single();
-
  if(error||!data)return;
-
  room=data;
  const old=currentState?.phase;
  currentState=data.game_state||{};
-
- if(old!==currentState.phase){
-  if(currentState.phase==="result"){
-   shotAnim={
-    start:performance.now(),
-    target:currentState.shooterChoice||0,
-    direction:currentState.keeperChoice||0
-   };
-   sound(180,.2,"triangle");
-   setTimeout(()=>sound(90,.2,"sawtooth"),150);
-  }
-  lastPhase=currentState.phase;
+ if(old!==currentState.phase&&currentState.phase==="result"){
+  shotAnim={
+   start:performance.now(),
+   target:currentState.shooterChoice||0,
+   direction:currentState.keeperChoice||0
+  };
+  sound(180,.2,"triangle");
+  setTimeout(()=>sound(90,.2,"sawtooth"),150);
  }
  renderGame();
 }
-
 function renderGame(){
+ if(mode==="offline"){
+  renderOffline();
+  return;
+ }
  if(!currentState)return;
-
- document.getElementById("roomInfo").textContent=
- "رمز الغرفة: "+room.room_code;
-
+ document.getElementById("roomInfo").textContent="رمز الغرفة: "+room.room_code;
  document.getElementById("players").textContent=
  "اللاعب الأول 🆚 "+(room.guest_id?"اللاعب الثاني":"بانتظار صديقك");
-
  document.getElementById("score").textContent=
  "النتيجة "+currentState.hostGoals+" - "+currentState.guestGoals+
  " | الجولة "+currentState.round+" / 10";
-
  document.getElementById("result").textContent=currentState.message||"";
-
  const controls=document.getElementById("controls");
  controls.innerHTML="";
-
  if(!room.guest_id){
   controls.textContent="شارك الرمز مع صديقك وانتظر دخوله.";
   return;
  }
-
  if(currentState.phase==="finished"){
-  const a=currentState.hostGoals;
-  const b=currentState.guestGoals;
-  let winner=a>b?"اللاعب الأول":b>a?"اللاعب الثاني":"تعادل";
+  const a=currentState.hostGoals,b=currentState.guestGoals;
+  const winner=a>b?"اللاعب الأول":b>a?"اللاعب الثاني":"تعادل";
   document.getElementById("result").textContent=
   winner==="تعادل"?"🤝 تعادل!":"🏆 الفائز: "+winner;
   controls.innerHTML="<h2>انتهت المباراة!</h2>";
@@ -440,12 +382,10 @@ function renderGame(){
   saveLocalResult();
   return;
  }
-
  const shooterId=currentState.shooter==="host"?room.host_id:room.guest_id;
  const keeperId=currentState.shooter==="host"?room.guest_id:room.host_id;
  const amShooter=myId===shooterId;
  const amKeeper=myId===keeperId;
-
  if(currentState.phase==="shoot"&&amShooter){
   controls.innerHTML="<h3>⚽ اختر جهة التسديد</h3>";
   addButtons(controls,"shoot");
@@ -466,7 +406,49 @@ function renderGame(){
   controls.textContent="⏳ بانتظار اختيار اللاعب الآخر...";
  }
 }
-
+function renderOffline(){
+ if(!currentState)return;
+ document.getElementById("roomInfo").textContent=
+ "📴 وضع أوفلاين ضد الكمبيوتر";
+ document.getElementById("players").textContent=
+ "أنت 🆚 الكمبيوتر ("+
+ ({easy:"سهل",medium:"متوسط",hard:"صعب"}[difficulty])+")";
+ document.getElementById("score").textContent=
+ "النتيجة "+currentState.hostGoals+" - "+currentState.guestGoals+
+ " | الجولة "+currentState.round+" / 10";
+ document.getElementById("timer").textContent="";
+ const controls=document.getElementById("controls");
+ controls.innerHTML="";
+ document.getElementById("result").textContent=currentState.message||"";
+ if(currentState.phase==="finished"){
+  const a=currentState.hostGoals,b=currentState.guestGoals;
+  let message=a>b?"🏆 فزت على الكمبيوتر!":a<b?"🤖 الكمبيوتر فاز!":"🤝 تعادل!";
+  document.getElementById("result").textContent=message;
+  controls.innerHTML="<h2>انتهت المباراة!</h2>";
+  const btn=document.createElement("button");
+  btn.id="restart";
+  btn.textContent="العب مرة ثانية";
+  btn.onclick=startOffline;
+  controls.appendChild(btn);
+  saveLocalResult();
+  return;
+ }
+ if(currentState.phase==="shoot"&&currentState.shooter==="host"){
+  controls.innerHTML="<h3>⚽ اختر جهة التسديد</h3>";
+  addButtons(controls,"shoot");
+ }else if(currentState.phase==="save"&&currentState.shooter==="guest"){
+  controls.innerHTML="<h3>🧤 الكمبيوتر يسدد! اختر جهة التصدي</h3>";
+  addButtons(controls,"save");
+ }else if(currentState.phase==="result"){
+  controls.innerHTML="<h3>انتهت الركلة!</h3>";
+  const btn=document.createElement("button");
+  btn.textContent="الجولة التالية";
+  btn.onclick=nextRound;
+  controls.appendChild(btn);
+ }else{
+  controls.textContent="⏳ الكمبيوتر يستعد...";
+ }
+}
 function addButtons(container,type){
  const choices=[
   {v:-1,t:"⬅ يسار"},
@@ -481,38 +463,56 @@ function addButtons(container,type){
   container.appendChild(b);
  });
 }
-
-function updateTimer(){
- if(!currentState||!room?.guest_id)return;
- const left=Math.max(0,Math.ceil((currentState.deadline-Date.now())/1000));
- document.getElementById("timer").textContent=
- "⏱️ "+left+" ثانية";
+function cpuKeeperChoice(playerShot){
+ const chance={easy:.20,medium:.40,hard:.65}[difficulty];
+ if(Math.random()<chance)return playerShot;
+ const others=[-1,0,1].filter(x=>x!==playerShot);
+ return others[Math.floor(Math.random()*others.length)];
 }
-
-async function saveState(state){
- const {error}=await db.from("rooms")
- .update({
-  game_state:state,
-  status:"playing",
-  updated_at:new Date().toISOString()
- }).eq("id",roomId);
-
- if(error)alert("مشكلة اتصال: "+error.message);
+function cpuShoot(){
+ if(mode!=="offline"||currentState.phase!=="shoot")return;
+ const shot=[-1,0,1][Math.floor(Math.random()*3)];
+ currentState.shooterChoice=shot;
+ currentState.phase="save";
+ currentState.message="🤖 الكمبيوتر يسدد! اختر جهة التصدي.";
+ renderOffline();
 }
-
 async function makeChoice(type,value){
  if(!currentState||busy)return;
-
+ if(mode==="offline"){
+  if(type==="shoot"&&currentState.phase==="shoot"&&currentState.shooter==="host"){
+   currentState.shooterChoice=value;
+   currentState.keeperChoice=cpuKeeperChoice(value);
+   const saved=currentState.shooterChoice===currentState.keeperChoice;
+   if(!saved)currentState.hostGoals++;
+   currentState.phase="result";
+   currentState.message=saved?"🧤 الكمبيوتر تصدى لتسديدتك!":"⚽ هــــــــدف! سجلت!";
+   shotAnim={start:performance.now(),target:value,direction:currentState.keeperChoice};
+   sound(saved?130:600,.3,saved?"triangle":"sine");
+   renderOffline();
+   return;
+  }
+  if(type==="save"&&currentState.phase==="save"&&currentState.shooter==="guest"){
+   currentState.keeperChoice=value;
+   const saved=currentState.shooterChoice===value;
+   if(!saved)currentState.guestGoals++;
+   currentState.phase="result";
+   currentState.message=saved?"🧤 تصديــــت للكرة!":"🤖 الكمبيوتر سجل هدف!";
+   shotAnim={start:performance.now(),target:currentState.shooterChoice,direction:value};
+   sound(saved?130:600,.3,saved?"triangle":"sine");
+   renderOffline();
+   return;
+  }
+  return;
+ }
  let s={...currentState};
-
  if(type==="shoot"&&s.phase==="shoot"){
   s.shooterChoice=value;
   s.phase="save";
   s.message="⚽ تم التسديد! الحارس يختار جهة التصدي.";
   s.deadline=Date.now()+20000;
   sound(250,.15,"triangle");
- }
- else if(type==="save"&&s.phase==="save"){
+ }else if(type==="save"&&s.phase==="save"){
   s.keeperChoice=value;
   const saved=s.shooterChoice===s.keeperChoice;
   if(!saved){
@@ -524,19 +524,50 @@ async function makeChoice(type,value){
   s.deadline=Date.now()+30000;
   sound(saved?130:600,.3,saved?"triangle":"sine");
  }else return;
-
  busy=true;
  currentState=s;
  renderGame();
  await saveState(s);
  busy=false;
 }
-
+function updateTimer(){
+ if(mode!=="online"||!currentState||!room?.guest_id)return;
+ const left=Math.max(0,Math.ceil((currentState.deadline-Date.now())/1000));
+ document.getElementById("timer").textContent="⏱️ "+left+" ثانية";
+}
+async function saveState(state){
+ const {error}=await db.from("rooms")
+ .update({
+  game_state:state,
+  status:"playing",
+  updated_at:new Date().toISOString()
+ }).eq("id",roomId);
+ if(error)alert("مشكلة اتصال: "+error.message);
+}
 async function nextRound(){
- if(!isHost||currentState.phase!=="result"||busy)return;
-
+ if(!currentState||currentState.phase!=="result")return;
+ if(mode==="offline"){
+  if(currentState.round>=10){
+   currentState.phase="finished";
+   currentState.message="🏆 انتهت المباراة!";
+   renderOffline();
+   return;
+  }
+  currentState.round++;
+  currentState.shooter=currentState.shooter==="host"?"guest":"host";
+  currentState.phase="shoot";
+  currentState.shooterChoice=null;
+  currentState.keeperChoice=null;
+  currentState.message=currentState.shooter==="host"?
+  "دورك تسدد!":"دور الكمبيوتر يسدد!";
+  renderOffline();
+  if(currentState.shooter==="guest"){
+   setTimeout(cpuShoot,600);
+  }
+  return;
+ }
+ if(!isHost||busy)return;
  let s={...currentState};
-
  if(s.round>=10){
   s.phase="finished";
   s.message="🏆 انتهت المباراة!";
@@ -549,14 +580,12 @@ async function nextRound(){
   s.message="بدأت الجولة الجديدة!";
   s.deadline=Date.now()+20000;
  }
-
  busy=true;
  currentState=s;
  renderGame();
  await saveState(s);
  busy=false;
 }
-
 async function resetMatch(){
  if(!isHost||busy)return;
  const s={
@@ -572,46 +601,47 @@ async function resetMatch(){
  await saveState(s);
  busy=false;
 }
-
 function copyRoom(){
  if(!room)return;
  navigator.clipboard?.writeText(room.room_code)
  .then(()=>alert("تم نسخ الرمز: "+room.room_code))
  .catch(()=>alert("رمز الغرفة: "+room.room_code));
 }
-
 function leaveRoom(){
  if(poller)clearInterval(poller);
  if(timerInterval)clearInterval(timerInterval);
+ poller=null;
+ timerInterval=null;
  room=null;
  roomId=null;
  currentState=null;
+ shotAnim=null;
+ mode="online";
  document.getElementById("gameArea").style.display="none";
  document.getElementById("lobby").style.display="block";
- showStatus("طلعت من الغرفة");
+ showStatus("طلعت من المباراة");
 }
-
 function saveLocalResult(){
+ if(!currentState||currentState.phase!=="finished")return;
  const key="penalty_history";
  let list=JSON.parse(localStorage.getItem(key)||"[]");
- const id=roomId;
- if(list.some(x=>x.id===id))return;
-
+ const id=mode==="offline"?currentState.matchId:roomId;
+ if(!id||list.some(x=>x.id===id))return;
  list.unshift({
   id,
+  mode:mode==="offline"?"أوفلاين":"أونلاين",
   score:currentState.hostGoals+" - "+currentState.guestGoals,
   date:new Date().toLocaleDateString("ar-AE")
  });
- list=list.slice(0,5);
+ list=list.slice(0,10);
  localStorage.setItem(key,JSON.stringify(list));
  showHistory();
 }
-
 function showHistory(){
  const list=JSON.parse(localStorage.getItem("penalty_history")||"[]");
  document.getElementById("leaderboard").innerHTML=
  list.length?list.map((x,i)=>
- (i+1)+". "+x.score+" — "+x.date
+ (i+1)+". "+x.score+" — "+x.date+" ("+(x.mode||"أونلاين")+")"
  ).join("<br>"):"ما عندك نتائج محفوظة للحين";
 }
 showHistory();
