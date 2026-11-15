@@ -3,332 +3,326 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>تحدي ركلات الجزاء 3D</title>
+<title>تحدي ركلات الجزاء</title>
+
 <style>
-* { box-sizing:border-box; }
-body {
- margin:0;
- background:#07130e;
- color:white;
- font-family:Arial,sans-serif;
- text-align:center;
+*{box-sizing:border-box}
+
+body{
+margin:0;
+background:#07130e;
+color:white;
+font-family:Arial;
+text-align:center;
 }
-header {
- background:#030a07;
- padding:15px;
+
+header{
+padding:12px;
+background:#030a07;
 }
-h1 { color:#36ff91; }
-#game {
- width:100%;
- height:65vh;
- min-height:380px;
- display:block;
+
+h1{color:#36ff91;margin:8px}
+
+canvas{
+display:block;
+width:100%;
+height:65vh;
+min-height:380px;
 }
-.controls { padding:12px; }
-button {
- background:#19c96b;
- border:0;
- border-radius:10px;
- padding:14px 20px;
- margin:5px;
- font-size:17px;
- font-weight:bold;
+
+button{
+background:#19c96b;
+color:#07130e;
+border:0;
+border-radius:12px;
+padding:14px 20px;
+margin:5px;
+font-size:17px;
+font-weight:bold;
 }
-#result {
- color:#36ff91;
- font-size:22px;
- margin:12px;
+
+#result{
+font-size:22px;
+color:#36ff91;
+margin:12px;
 }
-#score { font-size:18px; }
+
+#score{font-size:18px}
 </style>
 </head>
+
 <body>
+
 <header>
 <h1>⚽ تحدي ركلات الجزاء</h1>
-<p>العب وسجّل الأهداف!</p>
+<p>سجّل أكبر عدد من الأهداف!</p>
 </header>
-<div class="controls">
+
+<canvas id="game"></canvas>
+
 <h3>اختر جهة التسديد</h3>
+
 <button onclick="shoot(-1)">⬅ يسار</button>
 <button onclick="shoot(0)">⬆ الوسط</button>
 <button onclick="shoot(1)">يمين ➡</button>
-</div>
+
 <div id="result">مستعد للمباراة؟</div>
 <div id="score">الأهداف: 0 | الركلات: 0</div>
-<button onclick="resetGame()">مباراة جديدة 🔄</button>
-<script type="module">
-import * as THREE from
-'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
-const canvas = document.getElementById('game');
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb);
-scene.fog = new THREE.Fog(0x87ceeb,25,65);
-const camera = new THREE.PerspectiveCamera(
-65, canvas.clientWidth/canvas.clientHeight,0.1,100
-);
-camera.position.set(0,5,10);
-camera.lookAt(0,1,-7);
-const renderer = new THREE.WebGLRenderer({
-canvas,
-antialias:true
-});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.setSize(canvas.clientWidth,canvas.clientHeight,false);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-scene.add(new THREE.HemisphereLight(0xffffff,0x355533,2));
-const sun = new THREE.DirectionalLight(0xffffff,2);
-sun.position.set(-5,12,8);
-sun.castShadow=true;
-scene.add(sun);
-function box(x,y,z,w,h,d,color) {
- const mesh = new THREE.Mesh(
-  new THREE.BoxGeometry(w,h,d),
-  new THREE.MeshStandardMaterial({color})
- );
- mesh.position.set(x,y,z);
- mesh.castShadow=true;
- mesh.receiveShadow=true;
- scene.add(mesh);
- return mesh;
-}
-// الملعب
-const grass = new THREE.Mesh(
- new THREE.PlaneGeometry(22,35),
- new THREE.MeshStandardMaterial({color:0x16833c})
-);
-grass.rotation.x=-Math.PI/2;
-grass.position.z=-2;
-grass.receiveShadow=true;
-scene.add(grass);
-// خطوط الملعب
-function line(x1,z1,x2,z2) {
- const points=[
-  new THREE.Vector3(x1,.025,z1),
-  new THREE.Vector3(x2,.025,z2)
- ];
- const geometry=new THREE.BufferGeometry().setFromPoints(points);
- scene.add(new THREE.Line(
-  geometry,
-  new THREE.LineBasicMaterial({color:0xffffff})
- ));
-}
-line(-8,-10,8,-10);
-line(-8,5,8,5);
-line(-8,-10,-8,5);
-line(8,-10,8,5);
-line(-4,-10,-4,-5);
-line(4,-10,4,-5);
-line(-4,-5,4,-5);
-// المرمى
-const goalZ=-12;
-box(-3,1.25,goalZ,.15,2.5,.15,0xffffff);
-box(3,1.25,goalZ,.15,2.5,.15,0xffffff);
-box(0,2.5,goalZ,6,.15,.15,0xffffff);
-// شبكة المرمى
-const netMaterial=new THREE.LineBasicMaterial({
- color:0xffffff,
- transparent:true,
- opacity:.45
-});
-for(let x=-3;x<=3;x+=.5) {
- const points=[
-  new THREE.Vector3(x,0,goalZ),
-  new THREE.Vector3(x,2.5,goalZ)
- ];
- scene.add(new THREE.Line(
-  new THREE.BufferGeometry().setFromPoints(points),
-  netMaterial
- ));
-}
-for(let y=0;y<=2.5;y+=.5) {
- const points=[
-  new THREE.Vector3(-3,y,goalZ),
-  new THREE.Vector3(3,y,goalZ)
- ];
- scene.add(new THREE.Line(
-  new THREE.BufferGeometry().setFromPoints(points),
-  netMaterial
- ));
-}
-// الحارس
-const keeper=new THREE.Group();
-scene.add(keeper);
-keeper.position.set(0,0,-10.8);
-const keeperBody=new THREE.Mesh(
- new THREE.BoxGeometry(.8,1,.35),
- new THREE.MeshStandardMaterial({color:0xffd900})
-);
-keeperBody.position.y=1.1;
-keeper.add(keeperBody);
-const head=new THREE.Mesh(
- new THREE.SphereGeometry(.3,20,20),
- new THREE.MeshStandardMaterial({color:0xc68655})
-);
-head.position.y=1.85;
-keeper.add(head);
-const armMaterial=new THREE.MeshStandardMaterial({
- color:0xffd900
-});
-for(let side of [-1,1]) {
- const arm=new THREE.Mesh(
-  new THREE.BoxGeometry(.25,.85,.25),
-  armMaterial
- );
- arm.position.set(side*.55,1.3,0);
- arm.rotation.z=side*.3;
- keeper.add(arm);
- const leg=new THREE.Mesh(
-  new THREE.BoxGeometry(.3,.8,.3),
-  new THREE.MeshStandardMaterial({color:0x111111})
- );
- leg.position.set(side*.22,.4,0);
- keeper.add(leg);
-}
-// اللاعب من الخلف
-const player=new THREE.Group();
-scene.add(player);
-player.position.set(0,0,3);
-const kit=new THREE.MeshStandardMaterial({color:0x173bff});
-const skin=new THREE.MeshStandardMaterial({color:0xc68655});
-const body=new THREE.Mesh(
- new THREE.CylinderGeometry(.4,.48,1.1,16),
- kit
-);
-body.position.y=1.4;
-player.add(body);
-const playerHead=new THREE.Mesh(
- new THREE.SphereGeometry(.28,20,20),
- skin
-);
-playerHead.position.y=2.15;
-player.add(playerHead);
-for(let side of [-1,1]) {
- const leg=new THREE.Mesh(
-  new THREE.BoxGeometry(.3,1,.35),
-  new THREE.MeshStandardMaterial({color:0x111111})
- );
- leg.position.set(side*.22,.5,0);
- player.add(leg);
-}
-// الكرة
-const ball=new THREE.Mesh(
- new THREE.SphereGeometry(.23,32,32),
- new THREE.MeshStandardMaterial({color:0xffffff})
-);
-ball.position.set(0,.23,2);
-ball.castShadow=true;
-scene.add(ball);
-// مدرجات وجمهور مبسط
-for(let side of [-1,1]) {
- for(let row=0;row<3;row++) {
-  box(side*9,row*.5+1,-4,2,.5,17,0x555555);
-  for(let i=0;i<18;i++) {
-   const fan=new THREE.Mesh(
-    new THREE.SphereGeometry(.13,8,8),
-    new THREE.MeshStandardMaterial({
-     color:[0xff3333,0xffffff,0x2222ff,0xffff00][i%4]
-    })
-   );
-   fan.position.set(
-    side*9+(Math.random()-.5)*1.5,
-    row*.5+1.5,
-    -11+i*.8
-   );
-   scene.add(fan);
-  }
- }
-}
+
+<button onclick="resetGame()">🔄 مباراة جديدة</button>
+
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let W,H;
 let goals=0;
 let shots=0;
-let moving=false;
+let busy=false;
 let animation=null;
-const positions=[-2,0,2];
-function shoot(direction) {
- if(moving || shots>=5) return;
- moving=true;
- shots++;
- const keeperDirection=Math.floor(Math.random()*3);
- const targetX=positions[direction+1];
- const keeperX=positions[keeperDirection];
- const start=performance.now();
- const duration=1000;
- animation={
-  start,duration,targetX,keeperX,
-  startBall:ball.position.clone()
- };
- document.getElementById('result').textContent='⚽ سددت الكرة!';
+
+function resize(){
+const dpr=Math.min(devicePixelRatio||1,2);
+W=canvas.clientWidth;
+H=canvas.clientHeight;
+canvas.width=W*dpr;
+canvas.height=H*dpr;
+ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-function animate(now) {
- requestAnimationFrame(animate);
- if(animation) {
-  const a=animation;
-  const t=Math.min((now-a.start)/a.duration,1);
-  const ease=1-Math.pow(1-t,3);
-  ball.position.x=THREE.MathUtils.lerp(
-   a.startBall.x,a.targetX,ease
-  );
-  ball.position.y=.23+Math.sin(t*Math.PI)*2.5;
-  ball.position.z=THREE.MathUtils.lerp(
-   a.startBall.z,-11,ease
-  );
-  keeper.position.x=THREE.MathUtils.lerp(
-   0,a.keeperX,ease
-  );
-  keeper.rotation.z=
-   (a.keeperX===0?0:-.3)*ease;
-  if(t>=1) {
-   const saved=Math.abs(a.targetX-a.keeperX)<.5;
-   if(saved) {
-    document.getElementById('result').textContent=
-    '🧤 تصدى الحارس للكرة!';
-   } else {
-    goals++;
-    document.getElementById('result').textContent=
-    '⚽ هــــــــدف!';
-   }
-   document.getElementById('score').textContent=
-   `الأهداف: ${goals} | الركلات: ${shots}`;
-   if(shots===5) {
-    document.getElementById('result').textContent=
-    `🏆 انتهت المباراة! سجلت ${goals} من 5`;
-   }
-   animation=null;
-   setTimeout(()=>{
-    if(!animation) {
-     ball.position.set(0,.23,2);
-     keeper.position.set(0,0,-10.8);
-     keeper.rotation.z=0;
-     moving=false;
-    }
-   },800);
-  }
- }
- renderer.render(scene,camera);
+
+window.addEventListener("resize",resize);
+resize();
+
+function polygon(points,color){
+ctx.fillStyle=color;
+ctx.beginPath();
+ctx.moveTo(points[0][0],points[0][1]);
+points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+ctx.closePath();
+ctx.fill();
 }
-function resize() {
- const w=canvas.clientWidth;
- const h=canvas.clientHeight;
- camera.aspect=w/h;
- camera.updateProjectionMatrix();
- renderer.setSize(w,h,false);
+
+function draw(){
+
+ctx.clearRect(0,0,W,H);
+
+// السماء
+let sky=ctx.createLinearGradient(0,0,0,H);
+sky.addColorStop(0,"#73b9e8");
+sky.addColorStop(1,"#c2e6ff");
+ctx.fillStyle=sky;
+ctx.fillRect(0,0,W,H);
+
+// المدرجات
+polygon([[0,H*.15],[W,H*.15],[W,H*.38],[0,H*.38]],"#444");
+for(let i=0;i<45;i++){
+let x=i*W/45;
+ctx.fillStyle=["#fff","#ff3333","#3333ff","#ffcc00"][i%4];
+ctx.fillRect(x,H*.19,4,H*.09);
 }
-window.addEventListener('resize',resize);
-window.shoot=shoot;
-window.resetGame=function() {
- goals=0;
- shots=0;
- moving=false;
- animation=null;
- ball.position.set(0,.23,2);
- keeper.position.set(0,0,-10.8);
- keeper.rotation.z=0;
- document.getElementById('result').textContent=
- 'مستعد للمباراة؟';
- document.getElementById('score').textContent=
- 'الأهداف: 0 | الركلات: 0';
+
+// الملعب
+polygon([
+[W*.43,H*.30],
+[W*.57,H*.30],
+[W*.98,H],
+[W*.02,H]
+],"#167b38");
+
+// خطوط الملعب
+ctx.strokeStyle="white";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+ctx.moveTo(W*.43,H*.30);
+ctx.lineTo(W*.02,H);
+ctx.moveTo(W*.57,H*.30);
+ctx.lineTo(W*.98,H);
+ctx.stroke();
+
+// خطوط العشب
+for(let i=0;i<6;i++){
+let y=H*(.4+i*.12);
+ctx.globalAlpha=.13;
+ctx.fillStyle="#baffb0";
+ctx.fillRect(0,y,W,H*.07);
+}
+ctx.globalAlpha=1;
+
+// المرمى
+let gx=W*.25;
+let gy=H*.22;
+let gw=W*.5;
+let gh=H*.20;
+
+ctx.fillStyle="#ffffff";
+ctx.fillRect(gx,gy,gw,5);
+ctx.fillRect(gx,gy,5,gh);
+ctx.fillRect(gx+gw-5,gy,5,gh);
+
+// شبكة المرمى
+ctx.strokeStyle="rgba(255,255,255,.55)";
+ctx.lineWidth=1;
+
+for(let i=1;i<10;i++){
+ctx.beginPath();
+ctx.moveTo(gx+gw*i/10,gy);
+ctx.lineTo(gx+gw*i/10,gy+gh);
+ctx.stroke();
+}
+
+for(let i=1;i<5;i++){
+ctx.beginPath();
+ctx.moveTo(gx,gy+gh*i/5);
+ctx.lineTo(gx+gw,gy+gh*i/5);
+ctx.stroke();
+}
+
+// الحارس
+let kx=W*.5;
+let ky=H*.37;
+
+if(animation){
+kx+=animation.keeperX*W*.15*animation.progress;
+}
+
+ctx.fillStyle="#ffcc00";
+ctx.fillRect(kx-W*.025,ky,W*.05,H*.09);
+
+ctx.fillStyle="#c68655";
+ctx.beginPath();
+ctx.arc(kx,ky-10,W*.025,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="#222";
+ctx.fillRect(kx-W*.04,ky+H*.09,W*.025,H*.09);
+ctx.fillRect(kx+W*.015,ky+H*.09,W*.025,H*.09);
+
+// اللاعب من الخلف
+ctx.fillStyle="#173bff";
+ctx.fillRect(W*.44,H*.72,W*.12,H*.14);
+
+ctx.fillStyle="#c68655";
+ctx.beginPath();
+ctx.arc(W*.5,H*.69,W*.035,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="#111";
+ctx.fillRect(W*.445,H*.85,W*.04,H*.12);
+ctx.fillRect(W*.515,H*.85,W*.04,H*.12);
+
+// الكرة
+let bx=W*.5;
+let by=H*.92;
+let size=W*.035;
+
+if(animation){
+let t=animation.progress;
+bx=W*.5+(animation.targetX-W*.5)*t;
+by=H*.92-(H*.55)*t;
+size=W*.035*(1-.5*t);
+}
+
+ctx.fillStyle="white";
+ctx.beginPath();
+ctx.arc(bx,by,size,0,Math.PI*2);
+ctx.fill();
+
+ctx.strokeStyle="#222";
+ctx.lineWidth=2;
+ctx.stroke();
+
+ctx.fillStyle="#222";
+ctx.beginPath();
+ctx.arc(bx,by,size*.35,0,Math.PI*2);
+ctx.fill();
+
+if(animation && animation.progress>=1){
+finishShot();
+}
+
+requestAnimationFrame(draw);
+}
+
+function shoot(direction){
+
+if(busy || shots>=5)return;
+
+busy=true;
+shots++;
+
+let keeperDirection=Math.floor(Math.random()*3)-1;
+
+animation={
+progress:0,
+targetX:W*.5+direction*W*.20,
+keeperX:keeperDirection,
+start:performance.now()
 };
-requestAnimationFrame(animate);
+
+document.getElementById("result").textContent="⚽ تسديدة قوية!";
+
+function move(){
+if(!animation)return;
+
+animation.progress=Math.min(
+(performance.now()-animation.start)/850,1
+);
+
+if(animation.progress<1){
+requestAnimationFrame(move);
+}
+}
+
+requestAnimationFrame(move);
+}
+
+function finishShot(){
+
+if(!animation)return;
+
+let saved=Math.abs(
+(animation.targetX-W*.5)/W*.20-animation.keeperX
+)<.5;
+
+if(saved){
+document.getElementById("result").textContent="🧤 تصدى الحارس!";
+}else{
+goals++;
+document.getElementById("result").textContent="⚽ هــــــــدف!";
+}
+
+document.getElementById("score").textContent=
+`الأهداف: ${goals} | الركلات: ${shots}`;
+
+if(shots===5){
+document.getElementById("result").textContent=
+`🏆 انتهت المباراة! نتيجتك ${goals} من 5`;
+}
+
+animation=null;
+
+setTimeout(()=>{
+busy=false;
+},500);
+
+}
+
+function resetGame(){
+
+goals=0;
+shots=0;
+busy=false;
+animation=null;
+
+document.getElementById("result").textContent="مستعد للمباراة؟";
+document.getElementById("score").textContent="الأهداف: 0 | الركلات: 0";
+}
+
+requestAnimationFrame(draw);
+
 </script>
+
 </body>
 </html>
