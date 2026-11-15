@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penalty Online</title>
+<style>
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: #07130e;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+header {
+    padding: 20px;
+    background: #030a07;
+}
+h1 {
+    color: #36ff91;
+    font-size: 30px;
+}
+.field {
+    height: 450px;
+    margin: 15px;
+    border: 3px solid white;
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    background: repeating-linear-gradient(
+        0deg,
+        #167b38,
+        #167b38 55px,
+        #126c31 55px,
+        #126c31 110px
+    );
+}
+.goal {
+    position: absolute;
+    top: 30px;
+    left: 25%;
+    width: 50%;
+    height: 120px;
+    border: 6px solid white;
+    border-bottom: none;
+}
+.net {
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 15px,
+        rgba(255,255,255,.2) 16px
+    );
+}
+.keeper {
+    position: absolute;
+    top: 95px;
+    left: 47%;
+    font-size: 48px;
+    transition: left .5s;
+}
+.player {
+    position: absolute;
+    bottom: 65px;
+    left: 46%;
+    font-size: 65px;
+}
+.ball {
+    position: absolute;
+    bottom: 30px;
+    left: 48%;
+    font-size: 35px;
+    transition: all .8s ease;
+}
+button {
+    background: #19c96b;
+    color: #071b16;
+    border: none;
+    padding: 14px 20px;
+    margin: 6px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+}
+button:disabled {
+    opacity: .4;
+}
+#result {
+    font-size: 23px;
+    color: #36ff91;
+    margin: 20px;
+}
+#score {
+    font-size: 19px;
+}
+</style>
+</head>
+<body>
+<header>
+<h1>⚽ PENALTY ONLINE</h1>
+<p>ULTIMATE PENALTY EXPERIENCE</p>
+</header>
+<h2>Penalty Shootout</h2>
+<div class="field">
+<div class="goal">
+    <div class="net"></div>
+</div>
+<div class="keeper" id="keeper">🧤</div>
+<div class="player">🧍🏻</div>
+<div class="ball" id="ball">⚽</div>
+</div>
+<h3>Choose your shot</h3>
+<div>
+<button onclick="shoot('left')" id="left">⬅ LEFT</button>
+<button onclick="shoot('center')" id="center">⬆ CENTER</button>
+<button onclick="shoot('right')" id="right">RIGHT ➡</button>
+</div>
+<div id="result">READY TO SHOOT?</div>
+<div id="score">Goals: 0 | Shots: 0</div>
+
+🔄 NEW GAME
+
+<script>
+let goals = 0;
+let shots = 0;
+let playing = false;
+const positions = {
+    left: "27%",
+    center: "47%",
+    right: "70%"
+};
+function shoot(direction) {
+    if (playing || shots >= 5) return;
+    playing = true;
+    shots++;
+    const ball = document.getElementById("ball");
+    const keeper = document.getElementById("keeper");
+    const result = document.getElementById("result");
+    let keeperDirection = ["left","center","right"][
+        Math.floor(Math.random() * 3)
+    ];
+    keeper.style.left = positions[keeperDirection];
+    ball.style.left = positions[direction];
+    ball.style.bottom = "270px";
+    setTimeout(() => {
+        if (direction !== keeperDirection) {
+            goals++;
+            result.innerText = "⚽ GOOOOAL!";
+        } else {
+            result.innerText = "🧤 SAVED!";
+        }
+        document.getElementById("score").innerText =
+            `Goals: ${goals} | Shots: ${shots}`;
+        if (shots === 5) {
+            setTimeout(() => {
+                result.innerText =
+                    `🏆 GAME OVER! ${goals}/5 Goals`;
+            }, 500);
+        }
+        setTimeout(() => {
+            ball.style.left = "48%";
+            ball.style.bottom = "30px";
+            playing = false;
+        }, 500);
+    }, 900);
+}
+function resetGame() {
+    goals = 0;
+    shots = 0;
+    playing = false;
+    document.getElementById("ball").style.left = "48%";
+    document.getElementById("ball").style.bottom = "30px";
+    document.getElementById("keeper").style.left = "47%";
+    document.getElementById("result").innerText =
+        "READY TO SHOOT?";
+    document.getElementById("score").innerText =
+        "Goals: 0 | Shots: 0";
+}
+</script>
+</body>
+</html>
