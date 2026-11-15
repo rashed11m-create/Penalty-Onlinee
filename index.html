@@ -3,326 +3,331 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>تحدي ركلات الجزاء</title>
-
+<title>تحدي ركلات الجزاء أونلاين</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
-
-body{
-margin:0;
-background:#07130e;
-color:white;
-font-family:Arial;
-text-align:center;
-}
-
-header{
-padding:12px;
-background:#030a07;
-}
-
+body{margin:0;background:#07130e;color:white;font-family:Arial;text-align:center}
+header{padding:12px;background:#030a07}
 h1{color:#36ff91;margin:8px}
-
-canvas{
-display:block;
-width:100%;
-height:65vh;
-min-height:380px;
-}
-
-button{
-background:#19c96b;
-color:#07130e;
-border:0;
-border-radius:12px;
-padding:14px 20px;
-margin:5px;
-font-size:17px;
-font-weight:bold;
-}
-
-#result{
-font-size:22px;
-color:#36ff91;
-margin:12px;
-}
-
-#score{font-size:18px}
+button,input{border:0;border-radius:12px;padding:13px;margin:5px;font-size:17px}
+button{background:#19c96b;color:#07130e;font-weight:bold}
+input{width:85%;max-width:300px;text-align:center}
+#gameArea{display:none}
+canvas{display:block;width:100%;height:55vh;min-height:320px}
+#result{font-size:21px;color:#36ff91;margin:12px}
+#score{font-size:18px;margin:10px}
+#status{color:#ffda65;margin:12px}
+#roomInfo{font-size:19px;color:#36ff91}
 </style>
 </head>
-
 <body>
-
 <header>
 <h1>⚽ تحدي ركلات الجزاء</h1>
-<p>سجّل أكبر عدد من الأهداف!</p>
+<p>العب ضد ربعك أونلاين!</p>
 </header>
-
+<div id="lobby">
+<h2>ابدأ اللعب</h2>
+<button onclick="createRoom()">إنشاء غرفة</button>
+<br>
+<input id="roomInput" placeholder="اكتب رمز الغرفة">
+<br>
+<button onclick="joinRoom()">دخول الغرفة</button>
+<div id="status">أنشئ غرفة أو ادخل رمز صديقك</div>
+</div>
+<div id="gameArea">
+<div id="roomInfo"></div>
+<div id="players"></div>
 <canvas id="game"></canvas>
-
-<h3>اختر جهة التسديد</h3>
-
-<button onclick="shoot(-1)">⬅ يسار</button>
-<button onclick="shoot(0)">⬆ الوسط</button>
-<button onclick="shoot(1)">يمين ➡</button>
-
-<div id="result">مستعد للمباراة؟</div>
-<div id="score">الأهداف: 0 | الركلات: 0</div>
-
-<button onclick="resetGame()">🔄 مباراة جديدة</button>
-
+<div id="result">بانتظار اللاعبين</div>
+<div id="score"></div>
+<div id="controls"></div>
+</div>
 <script>
-
+const SUPABASE_URL="https://tkzgunmiroijvxxlkhsf.supabase.co";
+const SUPABASE_KEY="sb_publishable_Ia_qHzCQ4llHMdcUBJKL_A_2cIWVh3Y";
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let myId=localStorage.getItem("penalty_player_id");
+if(!myId){
+myId=crypto.randomUUID();
+localStorage.setItem("penalty_player_id",myId);
+}
+let room=null;
+let roomId=null;
+let isHost=false;
+let currentState=null;
+let poller=null;
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
-
-let W,H;
-let goals=0;
-let shots=0;
-let busy=false;
-let animation=null;
-
 function resize(){
 const dpr=Math.min(devicePixelRatio||1,2);
-W=canvas.clientWidth;
-H=canvas.clientHeight;
-canvas.width=W*dpr;
-canvas.height=H*dpr;
+canvas.width=canvas.clientWidth*dpr;
+canvas.height=canvas.clientHeight*dpr;
 ctx.setTransform(dpr,0,0,dpr,0,0);
+drawField();
 }
-
 window.addEventListener("resize",resize);
-resize();
-
-function polygon(points,color){
-ctx.fillStyle=color;
-ctx.beginPath();
-ctx.moveTo(points[0][0],points[0][1]);
-points.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
-ctx.closePath();
-ctx.fill();
-}
-
-function draw(){
-
-ctx.clearRect(0,0,W,H);
-
-// السماء
-let sky=ctx.createLinearGradient(0,0,0,H);
+function drawField(){
+let w=canvas.clientWidth,h=canvas.clientHeight;
+ctx.clearRect(0,0,w,h);
+let sky=ctx.createLinearGradient(0,0,0,h);
 sky.addColorStop(0,"#73b9e8");
 sky.addColorStop(1,"#c2e6ff");
 ctx.fillStyle=sky;
-ctx.fillRect(0,0,W,H);
-
-// المدرجات
-polygon([[0,H*.15],[W,H*.15],[W,H*.38],[0,H*.38]],"#444");
-for(let i=0;i<45;i++){
-let x=i*W/45;
-ctx.fillStyle=["#fff","#ff3333","#3333ff","#ffcc00"][i%4];
-ctx.fillRect(x,H*.19,4,H*.09);
-}
-
-// الملعب
-polygon([
-[W*.43,H*.30],
-[W*.57,H*.30],
-[W*.98,H],
-[W*.02,H]
-],"#167b38");
-
-// خطوط الملعب
-ctx.strokeStyle="white";
-ctx.lineWidth=2;
-
+ctx.fillRect(0,0,w,h);
+ctx.fillStyle="#444";
+ctx.fillRect(0,h*.15,w,h*.22);
+ctx.fillStyle="#167b38";
 ctx.beginPath();
-ctx.moveTo(W*.43,H*.30);
-ctx.lineTo(W*.02,H);
-ctx.moveTo(W*.57,H*.30);
-ctx.lineTo(W*.98,H);
-ctx.stroke();
-
-// خطوط العشب
-for(let i=0;i<6;i++){
-let y=H*(.4+i*.12);
-ctx.globalAlpha=.13;
-ctx.fillStyle="#baffb0";
-ctx.fillRect(0,y,W,H*.07);
-}
-ctx.globalAlpha=1;
-
-// المرمى
-let gx=W*.25;
-let gy=H*.22;
-let gw=W*.5;
-let gh=H*.20;
-
-ctx.fillStyle="#ffffff";
-ctx.fillRect(gx,gy,gw,5);
-ctx.fillRect(gx,gy,5,gh);
-ctx.fillRect(gx+gw-5,gy,5,gh);
-
-// شبكة المرمى
-ctx.strokeStyle="rgba(255,255,255,.55)";
-ctx.lineWidth=1;
-
+ctx.moveTo(w*.43,h*.30);
+ctx.lineTo(w*.57,h*.30);
+ctx.lineTo(w*.98,h);
+ctx.lineTo(w*.02,h);
+ctx.closePath();
+ctx.fill();
+ctx.strokeStyle="white";
+ctx.lineWidth=3;
+ctx.strokeRect(w*.25,h*.22,w*.5,h*.2);
 for(let i=1;i<10;i++){
 ctx.beginPath();
-ctx.moveTo(gx+gw*i/10,gy);
-ctx.lineTo(gx+gw*i/10,gy+gh);
+ctx.moveTo(w*.25+w*.5*i/10,h*.22);
+ctx.lineTo(w*.25+w*.5*i/10,h*.42);
+ctx.strokeStyle="rgba(255,255,255,.4)";
+ctx.lineWidth=1;
 ctx.stroke();
 }
-
-for(let i=1;i<5;i++){
-ctx.beginPath();
-ctx.moveTo(gx,gy+gh*i/5);
-ctx.lineTo(gx+gw,gy+gh*i/5);
-ctx.stroke();
-}
-
-// الحارس
-let kx=W*.5;
-let ky=H*.37;
-
-if(animation){
-kx+=animation.keeperX*W*.15*animation.progress;
-}
-
+let kx=w*.5;
 ctx.fillStyle="#ffcc00";
-ctx.fillRect(kx-W*.025,ky,W*.05,H*.09);
-
+ctx.fillRect(kx-w*.025,h*.37,w*.05,h*.09);
 ctx.fillStyle="#c68655";
 ctx.beginPath();
-ctx.arc(kx,ky-10,W*.025,0,Math.PI*2);
+ctx.arc(kx,h*.35,13,0,Math.PI*2);
 ctx.fill();
-
-ctx.fillStyle="#222";
-ctx.fillRect(kx-W*.04,ky+H*.09,W*.025,H*.09);
-ctx.fillRect(kx+W*.015,ky+H*.09,W*.025,H*.09);
-
-// اللاعب من الخلف
 ctx.fillStyle="#173bff";
-ctx.fillRect(W*.44,H*.72,W*.12,H*.14);
-
+ctx.fillRect(w*.44,h*.72,w*.12,h*.14);
 ctx.fillStyle="#c68655";
 ctx.beginPath();
-ctx.arc(W*.5,H*.69,W*.035,0,Math.PI*2);
+ctx.arc(w*.5,h*.69,14,0,Math.PI*2);
 ctx.fill();
-
-ctx.fillStyle="#111";
-ctx.fillRect(W*.445,H*.85,W*.04,H*.12);
-ctx.fillRect(W*.515,H*.85,W*.04,H*.12);
-
-// الكرة
-let bx=W*.5;
-let by=H*.92;
-let size=W*.035;
-
-if(animation){
-let t=animation.progress;
-bx=W*.5+(animation.targetX-W*.5)*t;
-by=H*.92-(H*.55)*t;
-size=W*.035*(1-.5*t);
-}
-
 ctx.fillStyle="white";
 ctx.beginPath();
-ctx.arc(bx,by,size,0,Math.PI*2);
+ctx.arc(w*.5,h*.92,13,0,Math.PI*2);
 ctx.fill();
-
 ctx.strokeStyle="#222";
-ctx.lineWidth=2;
 ctx.stroke();
-
-ctx.fillStyle="#222";
-ctx.beginPath();
-ctx.arc(bx,by,size*.35,0,Math.PI*2);
-ctx.fill();
-
-if(animation && animation.progress>=1){
-finishShot();
 }
-
-requestAnimationFrame(draw);
+function showStatus(t){
+document.getElementById("status").textContent=t;
 }
-
-function shoot(direction){
-
-if(busy || shots>=5)return;
-
-busy=true;
-shots++;
-
-let keeperDirection=Math.floor(Math.random()*3)-1;
-
-animation={
-progress:0,
-targetX:W*.5+direction*W*.20,
-keeperX:keeperDirection,
-start:performance.now()
+async function createRoom(){
+showStatus("جاري إنشاء الغرفة...");
+const code=Math.floor(100000+Math.random()*900000).toString();
+const state={
+shooter:"host",
+phase:"shoot",
+shooterChoice:null,
+keeperChoice:null,
+hostGoals:0,
+guestGoals:0,
+round:1,
+message:"الغرفة جاهزة! بانتظار صديقك."
 };
-
-document.getElementById("result").textContent="⚽ تسديدة قوية!";
-
-function move(){
-if(!animation)return;
-
-animation.progress=Math.min(
-(performance.now()-animation.start)/850,1
-);
-
-if(animation.progress<1){
-requestAnimationFrame(move);
+const {data,error}=await db.from("rooms").insert({
+room_code:code,
+host_id:myId,
+game_state:state,
+status:"waiting"
+}).select().single();
+if(error){
+showStatus("خطأ: "+error.message);
+return;
 }
+room=data;
+roomId=data.id;
+isHost=true;
+startGame();
 }
-
-requestAnimationFrame(move);
+async function joinRoom(){
+const code=document.getElementById("roomInput").value.trim();
+if(!code){
+showStatus("اكتب رمز الغرفة أولاً");
+return;
 }
-
-function finishShot(){
-
-if(!animation)return;
-
-let saved=Math.abs(
-(animation.targetX-W*.5)/W*.20-animation.keeperX
-)<.5;
-
-if(saved){
-document.getElementById("result").textContent="🧤 تصدى الحارس!";
-}else{
-goals++;
-document.getElementById("result").textContent="⚽ هــــــــدف!";
+showStatus("جاري البحث عن الغرفة...");
+const {data,error}=await db.from("rooms")
+.select("*").eq("room_code",code).maybeSingle();
+if(error||!data){
+showStatus("ما حصلنا الغرفة، تأكد من الرمز");
+return;
 }
-
+if(data.guest_id){
+showStatus("الغرفة ممتلئة");
+return;
+}
+if(data.host_id===myId){
+showStatus("إنت صاحب الغرفة");
+return;
+}
+const {data:updated,error:updateError}=await db.from("rooms")
+.update({guest_id:myId,status:"playing"})
+.eq("id",data.id).is("guest_id",null)
+.select().maybeSingle();
+if(updateError||!updated){
+showStatus("ما قدرنا ندخلك، جرّب مرة ثانية");
+return;
+}
+room=updated;
+roomId=updated.id;
+isHost=false;
+startGame();
+}
+function startGame(){
+document.getElementById("lobby").style.display="none";
+document.getElementById("gameArea").style.display="block";
+resize();
+refreshRoom();
+if(poller)clearInterval(poller);
+poller=setInterval(refreshRoom,1200);
+}
+async function refreshRoom(){
+if(!roomId)return;
+const {data,error}=await db.from("rooms")
+.select("*").eq("id",roomId).single();
+if(error||!data)return;
+room=data;
+currentState=data.game_state||{};
+renderGame();
+}
+function renderGame(){
+if(!currentState)return;
+const hostName="اللاعب الأول";
+const guestName=room.guest_id?"اللاعب الثاني":"بانتظار اللاعب الثاني";
+document.getElementById("roomInfo").textContent=
+"رمز الغرفة: "+room.room_code;
+document.getElementById("players").textContent=
+hostName+" 🆚 "+guestName;
 document.getElementById("score").textContent=
-`الأهداف: ${goals} | الركلات: ${shots}`;
-
-if(shots===5){
+"النتيجة: "+currentState.hostGoals+" - "+currentState.guestGoals+
+" | الجولة "+currentState.round+" من 5";
 document.getElementById("result").textContent=
-`🏆 انتهت المباراة! نتيجتك ${goals} من 5`;
+currentState.message||"";
+const controls=document.getElementById("controls");
+controls.innerHTML="";
+if(!room.guest_id){
+controls.textContent="شارك رمز الغرفة مع صديقك وانتظر دخوله.";
+return;
 }
-
-animation=null;
-
-setTimeout(()=>{
-busy=false;
-},500);
-
+const shooterId=currentState.shooter==="host"?room.host_id:room.guest_id;
+const keeperId=currentState.shooter==="host"?room.guest_id:room.host_id;
+const amShooter=myId===shooterId;
+const amKeeper=myId===keeperId;
+if(currentState.phase==="shoot" && amShooter){
+controls.innerHTML="<h3>دورك تسدد! اختر الجهة</h3>";
+addChoiceButtons(controls,"shoot");
 }
-
-function resetGame(){
-
-goals=0;
-shots=0;
-busy=false;
-animation=null;
-
-document.getElementById("result").textContent="مستعد للمباراة؟";
-document.getElementById("score").textContent="الأهداف: 0 | الركلات: 0";
+else if(currentState.phase==="save" && amKeeper){
+controls.innerHTML="<h3>دورك تحرس! اختر جهة التصدي</h3>";
+addChoiceButtons(controls,"save");
 }
-
-requestAnimationFrame(draw);
-
+else if(currentState.phase==="result"){
+controls.innerHTML="<h3>انتهت الركلة!</h3>";
+if(isHost){
+const b=document.createElement("button");
+b.textContent="الجولة التالية";
+b.onclick=nextRound;
+controls.appendChild(b);
+}else{
+controls.textContent="بانتظار اللاعب الأول يبدأ الجولة التالية";
+}
+}
+else if(currentState.phase==="finished"){
+controls.innerHTML="<h2>🏆 انتهت المباراة!</h2>";
+const b=document.createElement("button");
+b.textContent="مباراة جديدة";
+b.onclick=resetMatch;
+controls.appendChild(b);
+}
+else{
+controls.textContent=amShooter?
+"بانتظار دورك...":"بانتظار اختيار اللاعب الثاني...";
+}
+}
+function addChoiceButtons(container,type){
+const choices=[
+{v:-1,t:"⬅ يسار"},
+{v:0,t:"⬆ الوسط"},
+{v:1,t:"يمين ➡"}
+];
+choices.forEach(c=>{
+const b=document.createElement("button");
+b.textContent=c.t;
+b.onclick=()=>makeChoice(type,c.v);
+container.appendChild(b);
+});
+}
+async function saveState(state){
+const {error}=await db.from("rooms")
+.update({game_state:state,status:"playing",updated_at:new Date().toISOString()})
+.eq("id",roomId);
+if(error)alert("صار خطأ في الاتصال: "+error.message);
+}
+async function makeChoice(type,value){
+if(!currentState)return;
+let s={...currentState};
+if(type==="shoot" && s.phase==="shoot"){
+s.shooterChoice=value;
+s.phase="save";
+s.message="⚽ تم التسديد! دور الحارس يختار.";
+}
+else if(type==="save" && s.phase==="save"){
+s.keeperChoice=value;
+const saved=s.shooterChoice===s.keeperChoice;
+if(!saved){
+if(s.shooter==="host")s.hostGoals++;
+else s.guestGoals++;
+}
+s.phase="result";
+s.message=saved?"🧤 تصدى الحارس!":"⚽ هــــــــدف!";
+}
+else return;
+currentState=s;
+renderGame();
+await saveState(s);
+}
+async function nextRound(){
+if(!isHost||currentState.phase!=="result")return;
+let s={...currentState};
+if(s.round>=5){
+s.phase="finished";
+s.message="🏆 انتهت المباراة!";
+}else{
+s.round++;
+s.shooter=s.shooter==="host"?"guest":"host";
+s.phase="shoot";
+s.shooterChoice=null;
+s.keeperChoice=null;
+s.message="بدأت الجولة الجديدة!";
+}
+currentState=s;
+renderGame();
+await saveState(s);
+}
+async function resetMatch(){
+if(!isHost)return;
+const s={
+shooter:"host",
+phase:"shoot",
+shooterChoice:null,
+keeperChoice:null,
+hostGoals:0,
+guestGoals:0,
+round:1,
+message:"بدأت مباراة جديدة!"
+};
+currentState=s;
+renderGame();
+await saveState(s);
+}
 </script>
-
 </body>
 </html>
